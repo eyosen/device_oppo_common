@@ -20,6 +20,7 @@ import android.app.Activity;
 import android.app.NotificationManager;
 import android.content.ContentResolver;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.SharedPreferences;
 import android.database.ContentObserver;
@@ -28,6 +29,7 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.media.AudioManager;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.os.PowerManager;
@@ -54,6 +56,11 @@ public class KeyHandler implements DeviceKeyHandler {
 
     private static final String TAG = KeyHandler.class.getSimpleName();
     private static final int GESTURE_REQUEST = 1;
+
+    public static final String ACTION_UPDATE_SLIDER_POSITION
+            = "com.slim.device.UPDATE_SLIDER_POSITION";
+    public static final String EXTRA_SLIDER_POSITION = "position";
+    public static final String EXTRA_SLIDER_POSITION_VALUE = "position_value";
 
     public static final String SETTING_NOTIF_SLIDER_UP =
             "device_oppo_common_notification_slider_up1";
@@ -260,6 +267,7 @@ public class KeyHandler implements DeviceKeyHandler {
 
     public KeyEvent handleKeyEvent(KeyEvent event) {
         int scanCode = event.getScanCode();
+        int position = scanCode == 601 ? 0 : scanCode == 602 ? 1 : 2;
         boolean isSliderModeSupported = sSupportedSliderModes.contains(scanCode);
         if (isSliderModeSupported) {
             // Remap slider actions
@@ -295,8 +303,21 @@ public class KeyHandler implements DeviceKeyHandler {
             processEvent(event);
         } else {
             mEventHandler.sendMessage(msg);
+            sendUpdateBroadcast(position, scanCode);
         }
         return null;
+    }
+
+    private void sendUpdateBroadcast(int position, int position_value) {
+        Bundle extras = new Bundle();
+        Intent intent = new Intent(ACTION_UPDATE_SLIDER_POSITION);
+        extras.putInt(EXTRA_SLIDER_POSITION, position);
+        extras.putInt(EXTRA_SLIDER_POSITION_VALUE, position_value);
+        intent.putExtras(extras);
+        mContext.sendBroadcastAsUser(intent, UserHandle.CURRENT);
+        intent.setFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY);
+        Log.d(TAG, "slider change to positon " + position
+                            + " with value " + position_value);
     }
 
     private Message getMessageForKeyEvent(KeyEvent keyEvent) {
